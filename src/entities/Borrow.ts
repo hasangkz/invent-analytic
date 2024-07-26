@@ -1,24 +1,24 @@
-import { Entity, PrimaryGeneratedColumn, ManyToOne, Column } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
 import { User } from './User';
 import { Book } from './Book';
 
 @Entity()
 export class Borrow {
   @PrimaryGeneratedColumn()
-  id;
+  id!: number;
 
   @ManyToOne(() => User, (user) => user.borrows)
-  user;
+  user!: User;
 
   @ManyToOne(() => Book, (book) => book.borrows)
-  book;
+  book!: Book;
 
-  @Column({ type: 'date' })
-  borrowDate;
+  @Column({ type: 'date', nullable: false })
+  borrow_date!: Date;
 
   @Column({ type: 'date', nullable: true })
-  returnDate;
+  return_date?: Date;
 
   @Column({ type: 'float', nullable: true })
-  rating;
+  rating?: number;
 }
