@@ -7,8 +7,8 @@ const postgresClient = new pg.Pool({
   connectionString: process.env.DB_CONNECTION_KEY,
 });
 
-const connectDB = () => {
-  postgresClient.connect((err) => {
+const connectDB = async () => {
+  await postgresClient.connect((err) => {
     if (err) {
       console.error('Database connection failed', err);
       process.exit(1);
