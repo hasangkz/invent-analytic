@@ -1,16 +1,33 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  BaseEntity,
+  JoinColumn,
+} from 'typeorm';
 import { User } from './User';
 import { Book } from './Book';
 
 @Entity()
-export class Borrow {
+export class Borrow extends BaseEntity {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @ManyToOne(() => User, (user) => user.borrows)
+  @Column({ nullable: false })
+  user_id!: number;
+  @ManyToOne(() => User, {
+    nullable: false,
+  })
+  @JoinColumn({ name: 'user_id' })
   user!: User;
 
-  @ManyToOne(() => Book, (book) => book.borrows)
+  @Column({ nullable: false })
+  book_id!: number;
+  @ManyToOne(() => Book, {
+    nullable: false,
+  })
+  @JoinColumn({ name: 'book_id' })
   book!: Book;
 
   @Column({ type: 'date', nullable: false })
