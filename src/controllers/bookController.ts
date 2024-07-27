@@ -53,7 +53,7 @@ export const createBook = async (req: Request, res: Response) => {
     const newBook = Book.create({ name });
     await Book.save(newBook);
 
-    res.status(200).json({ book: newBook });
+    res.status(200).json({ message: 'The book was created successfully.' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
     console.log('Error in create Book: ', err.message);

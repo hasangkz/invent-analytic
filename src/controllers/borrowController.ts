@@ -27,7 +27,6 @@ export const borrowBook = async (req: Request, res: Response) => {
 
     const borrow = await Borrow.findOne({
       where: {
-        user_id: user.id,
         book_id: book.id,
         return_date: IsNull(),
       },
@@ -36,19 +35,17 @@ export const borrowBook = async (req: Request, res: Response) => {
     if (borrow) {
       return res
         .status(404)
-        .json({ message: 'User already borrow this book!' });
+        .json({ message: 'Book has been already borrowed!' });
     }
-
-    const borrowDate = new Date();
 
     const newBorrow = await Borrow.create({
       user_id: userId,
       book_id: bookId,
-      borrow_date: borrowDate,
+      borrow_date: new Date(),
     });
     await Borrow.save(newBorrow);
 
-    res.status(200).json({ borrow: newBorrow });
+    res.status(200).json({ message: 'The book was borrowed successfully.' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
     console.log('Error in borrow: ', err.message);
@@ -120,7 +117,7 @@ export const returnBook = async (req: Request, res: Response) => {
     }
     await Borrow.save(borrow);
 
-    res.status(200).json({ borrow });
+    res.status(200).json({ message: 'The book was returned successfully.' });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
     console.log('Error in returnBook: ', err.message);
