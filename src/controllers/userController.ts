@@ -1,93 +1,79 @@
-import { Request, Response } from 'express';
-import { Borrow } from '../entities/Borrow';
+import { NextFunction, Request, Response } from 'express';
 import { User } from '../entities/User';
-import { IUserBook } from '../types/user';
+import { CustomError } from '../exceptions/errorException';
+import { UserDTO } from '../dtos/UserDTO';
+import { UserRepository } from '../repositories/UserRepository';
+import { BorrowRepository } from '../repositories/BorrowRepository';
+import { AppDataSource } from '../config/ data-source';
+import { BorrowService } from '../services/borrowService';
 
-export const getUser = async (req: Request, res: Response) => {
+// [GET]
+export const getUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const id = parseInt(req.params.id);
 
-    const user = await User.createQueryBuilder('user')
-      .select(['user.id', 'user.name'])
-      .where('user.id = :id', { id })
-      .getOne();
+    const userRepository = new UserRepository(AppDataSource);
+    const borrowRepository = new BorrowRepository(AppDataSource);
 
-    if (!user) return res.status(400).json({ error: 'User not found!' });
+    const user = await userRepository.findUserById(id);
 
-    const borrows = await Borrow.createQueryBuilder('borrow')
-      .leftJoinAndSelect('borrow.book', 'book')
-      .select([
-        'borrow.borrow_date',
-        'borrow.return_date',
-        'book.name',
-        'book.average_rating',
-      ])
-      .where('borrow.user_id = :userId', { userId: user.id })
-      .getMany();
+    if (!user) throw new CustomError('User not found!', 400);
 
-    let pastBooks: IUserBook[] = [];
-    let presentBooks: IUserBook[] = [];
+    const borrows = await borrowRepository.findBorrowsByUserId(id);
 
-    for (const borrowedBook of borrows) {
-      if (borrowedBook?.return_date) {
-        pastBooks.push({
-          name: borrowedBook.book.name,
-          userScore: borrowedBook.book.average_rating,
-        });
-      } else {
-        presentBooks.push({
-          name: borrowedBook.book.name,
-          userScore: borrowedBook.book.average_rating,
-        });
-      }
-    }
+    const { past, present } = await BorrowService.handleBorrowBook(borrows);
 
-    res.status(200).json({
-      id,
-      name: user.name,
-      books: { past: pastBooks, present: presentBooks },
-    });
+    const userDTO = new UserDTO(user.id, user.name, past, present);
+
+    res.status(200).json(userDTO);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-    console.log('Error in getUser: ', err.message);
+    next(err);
   }
 };
 
-export const getUsers = async (req: Request, res: Response) => {
+// [GET]
+export const getUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const users = await User.createQueryBuilder('user')
-      .select(['user.id', 'user.name'])
-      .getMany();
+    const userRepository = new UserRepository(AppDataSource);
+    const users = await userRepository.findAllUsers();
 
-    if (!users) return res.status(400).json({ error: 'User not found!' });
+    if (!users) throw new CustomError('There are no users!', 400);
 
     res.status(200).json(users);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-    console.log('Error in getUser: ', err.message);
+    next(err);
   }
 };
 
-export const createUser = async (req: any, res: any) => {
+// [POST]
+export const createUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     let { name } = req.body;
 
-    if (!name) {
-      return res.status(400).json({ error: 'Name field is required!' });
-    }
+    if (!name) throw new CustomError('Name field is required!', 400);
 
     const user = await User.findOne({ where: { name } });
 
-    if (user) {
-      return res.status(404).json({ error: 'User already exist' });
-    }
+    if (user) throw new CustomError('User already exist!', 404);
 
-    const newUser = User.create({ name });
-    await User.save(newUser);
+    const userRepository = new UserRepository(AppDataSource);
 
-    res.status(200).json({ user: newUser });
+    const successCreate = await userRepository.createUser(name);
+
+    res.status(200).json({ message: successCreate });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-    console.log('Error in getUser: ', err.message);
+    next(err);
   }
 };

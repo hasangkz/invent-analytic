@@ -1,125 +1,115 @@
-import { Book } from '../entities/Book';
-import { User } from '../entities/User';
 import { Borrow } from '../entities/Borrow';
-import { IsNull } from 'typeorm';
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
+import { AppDataSource } from '../config/ data-source';
+import { CustomError } from '../exceptions/errorException';
+import { UserRepository } from '../repositories/UserRepository';
+import { BorrowRepository } from '../repositories/BorrowRepository';
+import { BookRepository } from '../repositories/BookRepository';
+import { BorrowService } from '../services/borrowService';
 
-export const borrowBook = async (req: Request, res: Response) => {
+// [POST]
+export const borrowBook = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const userId = parseInt(req.params.userId);
     const bookId = parseInt(req.params.bookId);
 
-    const user = await User.findOne({
-      where: { id: userId },
-    });
+    const userRepository = new UserRepository(AppDataSource);
+    const borrowRepository = new BorrowRepository(AppDataSource);
+    const bookRepository = new BookRepository(AppDataSource);
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    const user = await userRepository.findUserById(userId);
 
-    const book = await Book.findOne({
-      where: { id: bookId },
-    });
+    if (!user) throw new CustomError('User not found!', 400);
 
-    if (!book) {
-      return res.status(404).json({ message: 'Book not found' });
-    }
+    const book = await bookRepository.findBookById(bookId);
 
-    const borrow = await Borrow.findOne({
-      where: {
-        book_id: book.id,
-        return_date: IsNull(),
-      },
-    });
+    if (!book) throw new CustomError('Book not found!', 400);
 
-    if (borrow) {
-      return res
-        .status(404)
-        .json({ message: 'Book has been already borrowed!' });
-    }
+    const borrowByUser = await borrowRepository.findUnreturnedBorrowBookByUser(
+      userId,
+      bookId
+    );
 
-    const newBorrow = await Borrow.create({
-      user_id: userId,
-      book_id: bookId,
-      borrow_date: new Date(),
-    });
-    await Borrow.save(newBorrow);
+    if (borrowByUser)
+      throw new CustomError('The book has been already borrowed by you!', 404);
 
-    res.status(200).json({ message: 'The book was borrowed successfully.' });
+    const borrow = await borrowRepository.findUnreturnedBorrowBook(bookId);
+
+    if (borrow)
+      throw new CustomError(
+        'The book has been already borrowed by someone!',
+        404
+      );
+
+    const successCreate = await borrowRepository.borrowTheBook(userId, bookId);
+
+    res.status(200).json({ message: successCreate });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-    console.log('Error in borrow: ', err.message);
+    next(err);
   }
 };
 
-export const returnBook = async (req: Request, res: Response) => {
+// [POST]
+export const returnBook = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const { score } = req.body;
     const userId = parseInt(req.params.userId);
     const bookId = parseInt(req.params.bookId);
 
-    const user = await User.findOne({
-      where: { id: userId },
-    });
+    const userRepository = new UserRepository(AppDataSource);
+    const borrowRepository = new BorrowRepository(AppDataSource);
+    const bookRepository = new BookRepository(AppDataSource);
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    const user = await userRepository.findUserById(userId);
 
-    const book = await Book.findOne({
-      where: { id: bookId },
-    });
+    if (!user) throw new CustomError('User not found!', 400);
 
-    if (!book) {
-      return res.status(404).json({ message: 'Book not found' });
-    }
+    const book = await bookRepository.findBookById(bookId);
 
-    const borrow = await Borrow.findOne({
-      where: {
-        user_id: user.id,
-        book_id: book.id,
-        return_date: IsNull(),
-      },
-    });
+    if (!book) throw new CustomError('Book not found!', 400);
 
-    if (!borrow) {
-      return res
-        .status(404)
-        .json({ message: 'User have not borrow this book!' });
-    }
+    let borrow = await borrowRepository.findUnreturnedBorrowBookByUser(
+      userId,
+      bookId
+    );
 
-    const returnDate = new Date();
+    if (!borrow)
+      throw new CustomError(
+        'You cannot return a book that you did not borrow!',
+        400
+      );
 
-    borrow.return_date = returnDate;
     if (score) {
       borrow.rating = score;
 
-      const [borrows, count] = await Borrow.createQueryBuilder('borrow')
-        .select(['borrow.rating'])
-        .where(
-          'borrow.book_id = :bookId AND borrow.return_date IS NOT NULL AND borrow.rating IS NOT NULL',
-          { bookId }
-        )
-        .getManyAndCount();
+      const [borrows, count] = await borrowRepository.findBorrowsByBookId(
+        bookId
+      );
 
       if (borrows && borrows?.length && count > 0) {
-        const ratings = borrows.map((item) => item.rating);
-        let sumOfRating: number = ratings?.reduce(
-          (accumulator: any, currentValue: any) => accumulator + currentValue,
-          0
+        await BorrowService.handleCommentedBorrowRating(
+          borrows,
+          bookId,
+          count,
+          score
         );
-        sumOfRating += score;
-        let resultRating = sumOfRating / (count + 1);
-
-        book.average_rating = resultRating;
-        await Book.save(book);
+      } else {
+        await BorrowService.handleUnCommentedBorrowRating(bookId, score);
       }
     }
+    borrow.return_date = new Date();
     await Borrow.save(borrow);
 
-    res.status(200).json({ message: 'The book was returned successfully.' });
+    res.status(200).json({ message: 'The book was returned successfully!' });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-    console.log('Error in returnBook: ', err.message);
+    next(err);
   }
 };

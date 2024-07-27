@@ -1,61 +1,75 @@
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { Book } from '../entities/Book';
+import { AppDataSource } from '../config/ data-source';
+import { BookRepository } from '../repositories/BookRepository';
+import { BookDTO } from '../dtos/BookDTO';
+import { CustomError } from '../exceptions/errorException';
 
-export const getBook = async (req: Request, res: Response) => {
+// [GET]
+export const getBook = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const id = parseInt(req.params.id);
 
-    const book = await Book.createQueryBuilder('book')
-      .select(['book.id', 'book.name', 'book.average_rating'])
-      .where('book.id = :id', { id })
-      .getOne();
+    const bookRepository = new BookRepository(AppDataSource);
 
-    if (!book) return res.status(400).json({ error: 'Book not found!' });
+    const book = await bookRepository.findBookById(id);
 
-    res
-      .status(200)
-      .json({ id, name: book.name, score: String(book.average_rating || -1) });
+    if (!book) throw new CustomError('Book not found!', 400);
+
+    const bookDTO = new BookDTO(book.id, book.name, book.average_rating);
+
+    res.status(200).json(bookDTO);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-    console.log('Error in getBook: ', err.message);
+    next(err);
   }
 };
 
-export const getBooks = async (req: Request, res: Response) => {
+// [GET]
+export const getBooks = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const books = await Book.createQueryBuilder('book')
-      .select(['book.id', 'book.name'])
-      .getMany();
+    const bookRepository = new BookRepository(AppDataSource);
 
-    if (!books) return res.status(400).json({ error: 'Book not found!' });
+    const books = await bookRepository.findAllBooks();
+
+    if (!books) throw new CustomError('There is no books!', 400);
 
     res.status(200).json(books);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-    console.log('Error in getBooks: ', err.message);
+    next(err);
   }
 };
 
-export const createBook = async (req: Request, res: Response) => {
+// [POST]
+export const createBook = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     let { name } = req.body;
 
-    if (!name) {
-      return res.status(400).json({ error: 'Name field is required!' });
-    }
+    if (!name) throw new CustomError('Name field is required!', 400);
 
     const book = await Book.findOne({ where: { name } });
 
     if (book) {
-      return res.status(404).json({ error: 'Book already exist' });
+      throw new CustomError('Book already exist', 404);
     }
 
-    const newBook = Book.create({ name });
-    await Book.save(newBook);
+    const bookRepository = new BookRepository(AppDataSource);
 
-    res.status(200).json({ message: 'The book was created successfully.' });
+    const successCreate = await bookRepository.createBook(name);
+
+    res.status(200).json({ message: successCreate });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
-    console.log('Error in create Book: ', err.message);
+    next(err);
   }
 };
