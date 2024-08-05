@@ -1,4 +1,4 @@
-import { AppDataSource } from '../config/ data-source';
+import { AppDataSource } from '../config/data-source';
 import { Borrow } from '../entities/Borrow';
 import { BookRepository } from '../repositories/BookRepository';
 import { IUserBook } from '../types/user';

@@ -5,7 +5,7 @@ import bodyParser from 'body-parser';
 import { bookRoutes } from './routes/bookRoutes';
 import { userRoutes } from './routes/userRoutes';
 import { errorHandler } from './middlewares/errorHandler';
-import { AppDataSource } from './config/ data-source';
+import { AppDataSource } from './config/data-source';
 
 dotenv.config();
 const port = process.env.PORT || 3000;

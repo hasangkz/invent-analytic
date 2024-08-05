@@ -4,7 +4,7 @@ import { CustomError } from '../exceptions/errorException';
 import { UserDTO } from '../dtos/UserDTO';
 import { UserRepository } from '../repositories/UserRepository';
 import { BorrowRepository } from '../repositories/BorrowRepository';
-import { AppDataSource } from '../config/ data-source';
+import { AppDataSource } from '../config/data-source';
 import { BorrowService } from '../services/borrowService';
 
 // [GET]

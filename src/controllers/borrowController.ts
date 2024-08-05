@@ -1,6 +1,6 @@
 import { Borrow } from '../entities/Borrow';
 import { NextFunction, Request, Response } from 'express';
-import { AppDataSource } from '../config/ data-source';
+import { AppDataSource } from '../config/data-source';
 import { CustomError } from '../exceptions/errorException';
 import { UserRepository } from '../repositories/UserRepository';
 import { BorrowRepository } from '../repositories/BorrowRepository';

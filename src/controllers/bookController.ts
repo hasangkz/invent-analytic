@@ -1,6 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { Book } from '../entities/Book';
-import { AppDataSource } from '../config/ data-source';
+import { AppDataSource } from '../config/data-source';
 import { BookRepository } from '../repositories/BookRepository';
 import { BookDTO } from '../dtos/BookDTO';
 import { CustomError } from '../exceptions/errorException';
